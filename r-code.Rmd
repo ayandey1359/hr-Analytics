@@ -1,0 +1,166 @@
+---
+title: "HR- Analytics"
+author: "Ayan Dey"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# HR-Analytics  
+Explore the dynamics of human resources through insightful Analytics in my HR Analytics project. This project is about HR metrics, providing valuable insights to optimize workforce management and enhance organizational performance.  
+## Processes  
+This project's primary goal is to create Dashboard, but before dashboard it is necessary to clean and organised the data,
+To understand,clean and organised the data I use **R programming** on R Studio Platform.
+After, ensure the data is cleaned and organised, I push the data into ta database, then I  use **Apache Superset** to create interactive Dashboard. Though There is not much opensource Hosting site to Embedded Superset dashboard, so I put all those screenshot in this R Markdown.  
+
+```{r}
+# setting-up working directory
+getwd()
+```
+```{r}
+# importing libraries 
+library(tidyverse)
+library(visdat)
+library(odbc) 
+library(DBI)
+```
+```{r}
+# importing data
+data <- read.csv("HR_Analytics.csv", header = TRUE)
+head(data)
+```
+```{r}
+# over-looking the entire data
+vis_dat(data)
+```
+Its shows last variable have some NULL values  
+```{r}
+# look null values Boolean 
+any(is.na(data))
+```
+```{r}
+# locate the Null values
+which(is.na(data), arr.ind = TRUE)
+```
+There is many NULL values in the 38 th column.  **NOTED**  
+
+```{r}
+# 38 th column overlook
+head(data[38])
+```
+```{r}
+glimpse(data)
+```
+No need the 38 th column for this Analysis.  
+```{r}
+data <- subset(data, select = -YearsWithCurrManager)
+```
+```{r}
+glimpse(data)
+```
+```{r}
+# see the factor values
+table(data$Attrition)
+```
+```{r}
+# convert the data type as factor of Attrition variable
+data$Attrition <- as.factor(data$Attrition)
+```
+```{r}
+# check the data type of Attrition variable
+class(data$Attrition)
+```
+```{r}
+# create a new variable for Analysis
+data <- data %>%
+  mutate(Attrition_vector = ifelse(Attrition == "yes", 1, 0))
+```
+```{r}
+# see the mapping 
+data %>% select(Attrition,Attrition_vector) %>% head(10)
+```
+its look not done .. miss mapping..  
+let make it ..  
+```{r}
+# delete the newly created column due to miss mapping
+data <- data %>% select(- Attrition_vector)
+```
+```{r}
+# create again that new variable
+data <- data %>%
+  mutate(Attrition_vector = ifelse(Attrition == "Yes", 1, 0))
+```
+```{r}
+# see the mapping 
+data %>% select(Attrition,Attrition_vector) %>% head(10)
+```
+```{r}
+# convert the Attrition_vector column as numeric
+data$Attrition_vector <- as.integer(data$Attrition_vector)
+```
+```{r}
+class(data$Attrition_vector)
+```
+Now the Attrition response converted in to a numeric vector. 
+```{r}
+# View(data)
+```
+### Now its Time to push the data into database 
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+# connecting with database
+con <- dbConnect(odbc::odbc(),
+                 driver = "PostgreSQL Unicode",
+                 server = "localhost",
+                 port = 5432,  
+                 database = "codeone",
+                 uid = "postgres",
+                 pwd = "13599")
+```
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+```{r}
+# let see the list of table in the connected database
+dbListTables(con)
+```
+```{r}
+# rename the data-frame before push into data base 
+hr_analytics_data <- data
+```
+```{r}
+# now push the data-frame into database
+copy_to(con,hr_analytics_data,temporary=FALSE)
+```
+```{r}
+# verify is the data inserted into the data base 
+dbListTables(con)
+```
+Now the cleaned data inserted into the data-base.  
+```{r}
+# check data type of all variable after pushing into database
+query <- "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'hr_analytics_data';"
+result <- dbGetQuery(con, query)
+result
+```
+Now to make dashboard work on RStudio and Apache-Superset Simultaneously.  
+
+![](../../constant/superset_login_screen.jpg)  
+## Dashboard  
+- SQL code while making Dashboard 
+```{r}
+# Attrition Percentage :: Edit Data :: Metrics :: 
+# (sum("Attrition_vector")/COUNT(*)::DECIMAL)*100
+```
+
+![](/home/ayan/project/HR-Analytics/dashboard/D1.jpg)
+![](/home/ayan/project/HR-Analytics/dashboard/D2.jpg)
+![](/home/ayan/project/HR-Analytics/dashboard/D3.jpg)
+![](/home/ayan/project/HR-Analytics/dashboard/D4.jpg)
+- Now Let Apply filter to overview of the Research And Development Department.  
+![](/home/ayan/project/HR-Analytics/dashboard/D5.jpg)
+![](/home/ayan/project/HR-Analytics/dashboard/D6.jpg)
+![](/home/ayan/project/HR-Analytics/dashboard/D7.jpg)
+
+
+
+
+
